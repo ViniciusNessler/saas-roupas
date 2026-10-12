@@ -1,0 +1,4 @@
+# Normaliza quebras de linha: LF no repositório.
+* text=auto
+# Scripts shell SEMPRE em LF (rodam no Linux do Codespace).
+*.sh text eol=lf

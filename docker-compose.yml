@@ -1,0 +1,44 @@
+services:
+  mysql:
+    image: mysql:8
+    container_name: saas-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: senha123
+      MYSQL_DATABASE: saas_roupas
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-psenha123"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: saas-clickhouse
+    environment:
+      CLICKHOUSE_DB: saas_roupas
+      # Sem senha, a imagem oficial tranca o user 'default' para conexões só de
+      # dentro do container (127.0.0.1). Definir a senha libera o acesso de rede
+      # (porta publicada) E exige a senha — por isso o healthcheck abaixo usa --password.
+      CLICKHOUSE_PASSWORD: senha123
+    ports:
+      - "8123:8123"   # interface HTTP (usada pelo @clickhouse/client)
+      - "9000:9000"   # protocolo nativo (clickhouse-client)
+    volumes:
+      - ch_data:/var/lib/clickhouse
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--password", "senha123", "--query", "SELECT 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  mysql_data:
+  ch_data:

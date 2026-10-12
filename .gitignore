@@ -1,0 +1,15 @@
+# Dependências
+node_modules/
+
+# Variáveis de ambiente (use os .env.example como referência)
+.env
+
+# Build do frontend
+frontend/dist/
+
+# Logs de benchmark gerados em runtime
+backend/benchmark.jsonl
+
+# Logs diversos / SO
+*.log
+.DS_Store
