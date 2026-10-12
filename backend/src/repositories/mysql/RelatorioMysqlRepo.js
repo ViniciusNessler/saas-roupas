@@ -8,7 +8,7 @@ const queries = {
     GROUP BY l.nome, mes ORDER BY mes DESC, faturamento DESC`,
 
   'top-produtos': `
-    SELECT p.nome as produto, p.categoria, SUM(v.quantidade) as total_vendido,
+    SELECT p.nome as produto, p.categoria as categoria, SUM(v.quantidade) as total_vendido,
            SUM(v.valor_total) as receita
     FROM vendas v JOIN produtos p ON v.produto_id=p.id
     GROUP BY p.id, p.nome, p.categoria ORDER BY total_vendido DESC LIMIT 10`,
@@ -33,7 +33,7 @@ const queries = {
     GROUP BY e.id, p.nome, l.nome, e.quantidade ORDER BY giro DESC`,
 
   'faturamento-categoria': `
-    SELECT p.categoria, SUM(v.valor_total) as faturamento, COUNT(*) as qtd_vendas
+    SELECT p.categoria as categoria, SUM(v.valor_total) as faturamento, COUNT(*) as qtd_vendas
     FROM vendas v JOIN produtos p ON v.produto_id=p.id
     GROUP BY p.categoria ORDER BY faturamento DESC`,
 

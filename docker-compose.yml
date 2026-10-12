@@ -1,7 +1,14 @@
+# Benchmark: os dois SGBDs recebem o MESMO envelope de recursos (8 GB de RAM, 4 vCPUs) e
+# rodam um de cada vez. Versões fixadas para reprodutibilidade.
 services:
   mysql:
-    image: mysql:8
+    image: mysql:8.4
     container_name: saas-mysql
+    # Buffer pool dimensionado para o envelope (~60% da RAM do container); o padrão de
+    # fábrica (128 MB) deixaria o MySQL artificialmente limitado ao disco nos volumes grandes.
+    command: --innodb-buffer-pool-size=5G
+    mem_limit: 8g
+    cpus: 4
     environment:
       MYSQL_ROOT_PASSWORD: senha123
       MYSQL_DATABASE: saas_roupas
@@ -16,8 +23,11 @@ services:
       retries: 20
 
   clickhouse:
-    image: clickhouse/clickhouse-server:latest
+    image: clickhouse/clickhouse-server:24.8
     container_name: saas-clickhouse
+    # O ClickHouse usa por padrão até 90% da memória disponível ao container.
+    mem_limit: 8g
+    cpus: 4
     environment:
       CLICKHOUSE_DB: saas_roupas
       # Sem senha, a imagem oficial tranca o user 'default' para conexões só de

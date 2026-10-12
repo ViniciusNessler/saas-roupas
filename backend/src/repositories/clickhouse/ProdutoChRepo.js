@@ -30,7 +30,7 @@ class ProdutoChRepo extends BaseRepository {
   async update(id, data) {
     const { nome, categoria, marca, tamanho, cor, preco } = data;
     await this.client.command({
-      query: `ALTER TABLE produtos UPDATE nome={nome:String},categoria={categoria:String},marca={marca:String},tamanho={tamanho:String},cor={cor:String},preco={preco:Float64} WHERE id={id:UInt64}`,
+      query: `ALTER TABLE produtos UPDATE nome={nome:String},categoria={categoria:String},marca={marca:String},tamanho={tamanho:String},cor={cor:String},preco={preco:Decimal(10,2)} WHERE id={id:UInt64}`,
       query_params: { nome, categoria, marca, tamanho, cor, preco: Number(preco), id: Number(id) },
       clickhouse_settings: { mutations_sync: 1 },
     });

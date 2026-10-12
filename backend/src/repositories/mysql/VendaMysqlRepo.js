@@ -27,12 +27,13 @@ class VendaMysqlRepo extends BaseRepository {
   }
   async update(id, data) {
     const { loja_id, vendedor_id, produto_id, quantidade, valor_unitario } = data;
-    const valor_total = quantidade * valor_unitario;
-    const data_venda = data.data_venda || new Date();
-    await getMysqlPool().query(
-      'UPDATE vendas SET loja_id=?,vendedor_id=?,produto_id=?,quantidade=?,valor_unitario=?,valor_total=?,data_venda=? WHERE id=?',
-      [loja_id, vendedor_id, produto_id, quantidade, valor_unitario, valor_total, data_venda, id]);
-    return { id, loja_id, vendedor_id, produto_id, quantidade, valor_unitario, valor_total, data_venda };
+    const valor_total = Math.round(quantidade * valor_unitario * 100) / 100;
+    // data_venda só é alterada quando informada (mesma semântica da versão ClickHouse).
+    const sets = ['loja_id=?', 'vendedor_id=?', 'produto_id=?', 'quantidade=?', 'valor_unitario=?', 'valor_total=?'];
+    const params = [loja_id, vendedor_id, produto_id, quantidade, valor_unitario, valor_total];
+    if (data.data_venda) { sets.push('data_venda=?'); params.push(data.data_venda); }
+    await getMysqlPool().query(`UPDATE vendas SET ${sets.join(',')} WHERE id=?`, [...params, id]);
+    return { id, loja_id, vendedor_id, produto_id, quantidade, valor_unitario, valor_total, data_venda: data.data_venda };
   }
   async remove(id) {
     await getMysqlPool().query('DELETE FROM vendas WHERE id=?', [id]);

@@ -55,8 +55,16 @@ CREATE TABLE IF NOT EXISTS vendas (
 );
 `;
 
+// node scripts/migrate-mysql.js --recreate  -> apaga e recria (usado pelo run-study.sh)
+const RECREATE = process.argv.includes('--recreate');
+
 async function run() {
   const pool = getMysqlPool();
+  if (RECREATE) {
+    for (const t of ['vendas', 'estoque', 'vendedores', 'produtos', 'lojas'])
+      await pool.query(`DROP TABLE IF EXISTS ${t}`);
+    console.log('Tabelas removidas (--recreate).');
+  }
   for (const stmt of SQL.split(';').map(s => s.trim()).filter(Boolean)) {
     await pool.query(stmt);
     console.log('OK:', stmt.substring(0, 60));

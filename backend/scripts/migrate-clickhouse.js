@@ -4,14 +4,21 @@ const { getClickhouseClient } = require('../src/config/db');
 
 /*
  * ClickHouse usa MergeTree engine.
- * Sem AUTO_INCREMENT: id é UInt64, gerenciado pela aplicação via MAX(id)+1.
+ * Sem AUTO_INCREMENT: id é gerenciado pela aplicação via MAX(id)+1.
  * Sem FOREIGN KEY: ClickHouse não suporta constraints relacionais.
  * UPDATE/DELETE via mutations (ALTER TABLE ... UPDATE/DELETE).
+ * Tipos equivalentes aos do MySQL: INT -> UInt32 e DECIMAL(10,2) -> Decimal(10,2)
+ * (valores monetários exatos nos dois bancos, permitindo comparar as saídas dos relatórios).
+ *
+ *   node scripts/migrate-clickhouse.js             # cria se não existir
+ *   node scripts/migrate-clickhouse.js --recreate  # apaga e recria (usado pelo run-study.sh)
  */
+
+const RECREATE = process.argv.includes('--recreate');
 
 const tables = [
   `CREATE TABLE IF NOT EXISTS lojas (
-    id UInt64,
+    id UInt32,
     nome String,
     cidade String,
     estado String,
@@ -19,40 +26,42 @@ const tables = [
   ) ENGINE = MergeTree() ORDER BY id`,
 
   `CREATE TABLE IF NOT EXISTS vendedores (
-    id UInt64,
+    id UInt32,
     nome String,
     cargo String,
-    loja_id UInt64,
+    loja_id UInt32,
     criado_em DateTime DEFAULT now()
   ) ENGINE = MergeTree() ORDER BY id`,
 
   `CREATE TABLE IF NOT EXISTS produtos (
-    id UInt64,
+    id UInt32,
     nome String,
     categoria String,
     marca String,
     tamanho String,
     cor String,
-    preco Float64,
+    preco Decimal(10,2),
     criado_em DateTime DEFAULT now()
   ) ENGINE = MergeTree() ORDER BY id`,
 
   `CREATE TABLE IF NOT EXISTS estoque (
-    id UInt64,
-    produto_id UInt64,
-    loja_id UInt64,
+    id UInt32,
+    produto_id UInt32,
+    loja_id UInt32,
     quantidade Int32,
     data_atualizacao DateTime
   ) ENGINE = MergeTree() ORDER BY id`,
 
+  // Chave de ordenação voltada à análise temporal (modelagem idiomática analytics-first).
+  // Consequência: data_venda não pode ser alterada por mutation (ver VendaChRepo.update).
   `CREATE TABLE IF NOT EXISTS vendas (
-    id UInt64,
-    loja_id UInt64,
-    vendedor_id UInt64,
-    produto_id UInt64,
+    id UInt32,
+    loja_id UInt32,
+    vendedor_id UInt32,
+    produto_id UInt32,
     quantidade Int32,
-    valor_unitario Float64,
-    valor_total Float64,
+    valor_unitario Decimal(10,2),
+    valor_total Decimal(10,2),
     data_venda DateTime
   ) ENGINE = MergeTree() ORDER BY (data_venda, id)`,
 ];
@@ -69,6 +78,11 @@ async function run() {
   await bootstrap.close();
 
   const client = getClickhouseClient();
+  if (RECREATE) {
+    for (const t of ['vendas', 'estoque', 'produtos', 'vendedores', 'lojas'])
+      await client.command({ query: `DROP TABLE IF EXISTS ${t} SYNC` });
+    console.log('Tabelas removidas (--recreate).');
+  }
   for (const sql of tables) {
     await client.command({ query: sql });
     console.log('OK:', sql.trim().substring(0, 60));
