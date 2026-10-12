@@ -50,4 +50,4 @@ async function executar(slug) {
   return rows;
 }
 
-module.exports = { executar, slugs: Object.keys(queries) };
+module.exports = { executar, slugs: Object.keys(queries), queries };

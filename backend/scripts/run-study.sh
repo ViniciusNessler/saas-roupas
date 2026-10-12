@@ -133,6 +133,7 @@ run_combo(){ # $1=adapter  $2=volume
   quiesce
   capture_db_config
   DB_ADAPTER="$ADAPTER" node scripts/dataset-check.js "$VOL" > "$RES/dataset_${ADAPTER}_${VOL}.json"
+  DB_ADAPTER="$ADAPTER" node scripts/explain.js > "$RES/plano_${ADAPTER}_${VOL}.txt" 2>&1 || echo "  (aviso: EXPLAIN falhou; ver plano_${ADAPTER}_${VOL}.txt)"
   local maxid; maxid=$(node -p "require('$RES/dataset_${ADAPTER}_${VOL}.json').max_id")
 
   # 3) backend neste adapter

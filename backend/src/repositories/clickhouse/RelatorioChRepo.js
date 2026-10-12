@@ -54,4 +54,4 @@ async function executar(slug) {
   return result.json();
 }
 
-module.exports = { executar, slugs: Object.keys(queries) };
+module.exports = { executar, slugs: Object.keys(queries), queries };
