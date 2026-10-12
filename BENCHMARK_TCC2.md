@@ -1,104 +1,77 @@
-# TCC 2 — Coleta do benchmark (estudo de escala)
+# TCC 2 — Coleta do benchmark (estudo de escala, protocolo v2)
 
-Guia para gerar os números finais que vão para a **conclusão** do TCC.
+Guia para gerar os números finais que vão para os **Resultados** e a **Conclusão** do TCC.
 
-## Decisão de ambiente (registrar na metodologia)
+## Ambiente
 
-Os dois bancos são avaliados na **mesma máquina virtual, em sequência** (nunca ao mesmo
-tempo): ao medir um banco, o container do outro fica **parado**. Isso elimina qualquer
-variância de hardware entre os cenários — é um reforço em relação ao texto original ("duas
-VMs idênticas"), pois aqui o hardware é **literalmente o mesmo**. Sugestão de nota na
-metodologia:
+- **GitHub Codespaces**, máquina de 4 vCPU / 16 GB / 32 GB (Linux x86-64, Docker).
+  A rota Oracle Cloud (Ampere A1 grátis) foi abandonada por falta de capacidade na região.
+- Os dois SGBDs rodam **no mesmo host, em sequência** (o ocioso fica parado) e cada um recebe
+  **o mesmo envelope de recursos: 8 GB de RAM e 4 vCPUs** (`docker-compose.yml`).
+- Versões fixadas: **MySQL 8.4** (buffer pool de 5 GB) e **ClickHouse 24.8** (até 90% da RAM do container).
+- Registro automático em `results/ambiente.txt` e `results/config_<banco>.txt`.
 
-> *"Para eliminar variância de hardware entre os cenários, MySQL e ClickHouse foram avaliados
-> na mesma máquina virtual, executados em sequência e nunca simultaneamente (o SGBD ocioso
-> permanece desligado durante a medição do outro)."*
+Sugestão de texto para a metodologia:
+
+> *"Os dois SGBDs foram avaliados no mesmo host, executados em sequência e nunca
+> simultaneamente, cada um limitado ao mesmo envelope de 8 GB de RAM e 4 vCPUs. O MySQL teve o
+> buffer pool dimensionado para esse envelope (5 GB), e o ClickHouse manteve sua política
+> padrão de memória; demais parâmetros permaneceram nos valores padrão de cada SGBD."*
 
 ## O que é medido
 
-- **4 volumes de vendas:** ~50 mil, 250 mil, 1 milhão e 5 milhões (mesmos dados nos dois bancos, geração determinística).
-- **OLAP:** os 6 relatórios.
-- **OLTP:** inserção, atualização e deleção unitárias (via aplicação).
-- Cada operação: repetida (`REPS`, padrão 10) com aquecimento descartado; usa-se a **mediana**.
+- **4 volumes de vendas:** ~50 mil, 250 mil, 1 milhão e 5 milhões (geração determinística).
+- **OLAP:** os 6 relatórios. **OLTP:** inserção, atualização e deleção unitárias, via aplicação.
+  No ClickHouse, a deleção é medida de duas formas: mutation (`ALTER TABLE ... DELETE`) e
+  **DELETE leve** (`DELETE FROM`).
+- Cada operação: **3 execuções de aquecimento (descartadas) + 30 medições** (`WARM`, `REPS`).
+- Cronômetro de alta resolução (`process.hrtime`) na camada de persistência; log em JSONL.
 
----
+## Controles de validade (protocolo v2)
 
-## 1. Provisionar a VM (Portal Azure)
+| Ameaça que a banca pode levantar | Controle aplicado |
+|---|---|
+| Hardware diferente entre os cenários | Mesmo host, bancos em sequência, mesmo envelope de CPU/RAM |
+| Configuração desigual (ex.: MySQL com 128 MB de buffer pool) | Memória dimensionada para o envelope nos dois; demais parâmetros padrão |
+| Dados diferentes | Geração determinística + **impressão digital** pós-carga comparada (contagem, somas, datas) |
+| Consultas não equivalentes | Mesmos JOINs e tipos; **saída dos 6 relatórios comparada** entre os bancos |
+| Operações que falham contadas como tempo | Status HTTP verificado; erros separados das medições |
+| Workload OLTP diferente | IDs de update/delete gerados por sequência determinística (iguais nos dois) |
+| Ruído de *merges*/estatísticas pós-carga | Estabilização simétrica: `ANALYZE TABLE` (MySQL) e `OPTIMIZE TABLE FINAL` (ClickHouse) |
+| Efeito de ordem / deriva do ambiente | Ordem dos bancos alternada a cada volume |
+| Resolução do cronômetro | `process.hrtime` (ns), ms com 3 casas |
+| "Só a mediana não diz nada sobre a variação" | Média, DP, CV, p25/p75, IQR, p95; teste de Mann-Whitney e delta de Cliff |
+| Cache de resultado | Desligado nos dois (`use_query_cache=0` no ClickHouse; MySQL 8 não tem query cache) |
 
-> ⚠️ Antes: confirme que o **crédito Azure for Students** ainda está válido (Portal → Cost Management).
+**Limitações declaradas (não controladas — citar no TCC):**
+- Medições em regime de **cache aquecido** (após o aquecimento), sem carga **concorrente**.
+- **Durabilidade diferente por padrão:** o MySQL faz *fsync* do redo log e do binlog a cada commit
+  (`innodb_flush_log_at_trx_commit=1`, `sync_binlog=1`); o ClickHouse não força *fsync* por insert.
+  Isso favorece o ClickHouse nas escritas e foi mantido por ser o padrão de cada SGBD.
+- Inserções unitárias no ClickHouse sem `async_insert` (reflete a aplicação, não o melhor caso do CH).
+- `MAX(id)+1` não é seguro sob concorrência (aceitável no protótipo; produção usaria UUID).
+- Ambiente de nuvem compartilhado (vizinhos ruidosos), mitigado por n=30 e estatística robusta.
+- Cada volume é carregado e medido uma vez (sem replicar o experimento inteiro).
 
-- **Create a resource → Virtual machine**
-- Resource group: `rg-tcc-bench` · Nome: `vm-bench`
-- Region: qualquer com disponibilidade (ex.: East US 2) — a mesma nas duas coisas não importa (é 1 VM só)
-- Image: **Ubuntu Server 22.04 LTS — x64 Gen2**
-- Size: **Standard D2s_v3** (2 vCPU / 8 GB)  ·  Disk: **Standard SSD, 30 GB** (padrão serve)
-- Authentication: **SSH public key** · Username: `azureuser` · Inbound: só **SSH (22)**
-- **Create** → anote o **IP público**
-- Depois de criada: menu **Auto-shutdown** → ativar (ex. 23:00) · **Cost Management → Budgets** → alerta em US$80
-
-> Volume de 5M no D2s_v3 é viável, mas o MySQL fica lento nos scans (é justamente o achado).
-> Se quiser mais folga só nesse volume, suba temporariamente para **D4s_v3** (4 vCPU/16 GB).
-
-## 2. Setup (na VM, via SSH)
-
-```bash
-ssh -i C:\caminho\vm-bench_key.pem azureuser@<IP>
-```
-```bash
-sudo apt update && sudo apt install -y git
-curl -fsSL https://get.docker.com | sudo sh
-sudo usermod -aG docker $USER && newgrp docker
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt install -y nodejs
-node -v && docker --version
-```
-
-Traga o código (SCP do Windows, ou `git clone` se tiver repo):
-```powershell
-scp -i C:\caminho\vm-bench_key.pem -r "C:\Users\vness\Documents\Claude\saas-roupas" azureuser@<IP>:/home/azureuser/
-```
-
-Suba os bancos e instale as dependências:
-```bash
-cd ~/saas-roupas
-# (reprodutibilidade) fixe a versão do ClickHouse no docker-compose.yml em vez de :latest, ex.:
-#   image: clickhouse/clickhouse-server:24.8
-docker compose up -d           # sobe mysql + clickhouse (com senha senha123)
-cd backend && cp .env.example .env && npm install
-```
-
-## 3. Teste rápido (valida o pipeline antes do estudo grande)
+## Executar (no Codespace, em `saas-roupas/backend`)
 
 ```bash
-cd ~/saas-roupas/backend
-VOLUMES="50000" REPS=5 bash scripts/run-study.sh
-node scripts/bench-report.js results
+docker compose -f ../docker-compose.yml up -d     # primeira vez (baixa as imagens)
+cp .env.example .env && npm install
+VOLUMES="50000" REPS=5 WARM=2 bash scripts/run-study.sh   # teste rápido do pipeline
+bash scripts/run-study.sh                                  # estudo completo (≈1–1,5 h)
 ```
-Deve gerar `results/bench_mysql_50000.jsonl`, `results/bench_clickhouse_50000.jsonl` e `results/resumo.csv`.
+Rodar desacoplado do terminal: `setsid nohup bash scripts/run-study.sh > /tmp/study.log 2>&1 < /dev/null &`
 
-## 4. Estudo completo
+## Saídas (`backend/results/`)
 
-```bash
-cd ~/saas-roupas/backend
-bash scripts/run-study.sh          # 50k, 250k, 1M, 5M · MySQL e ClickHouse
-node scripts/bench-report.js results
-```
-- Roda em segundo plano se quiser não prender o terminal:
-  `nohup bash scripts/run-study.sh > /tmp/study.log 2>&1 &` e acompanhe com `tail -f /tmp/study.log`.
-- OLTP do ClickHouse em 1M/5M é lento (cada update/delete é uma *mutation* que reescreve
-  parts) — é o comportamento esperado. Para encurtar, use `REPS=5` no volume de 5M.
+| Arquivo | Conteúdo |
+|---|---|
+| `bench_<banco>_<volume>.jsonl` | todas as medições brutas |
+| `resumo.csv` | estatística descritiva por volume × banco × operação |
+| `comparativo.csv` | MySQL × ClickHouse: razão das medianas, p-valor (Mann-Whitney), delta de Cliff |
+| `validacao.txt` | dados idênticos? saídas equivalentes? erros? falhas HTTP? tempo de carga |
+| `plano_<banco>_<volume>.txt` | EXPLAIN de cada relatório (base da análise descritiva) |
+| `dataset_*`, `out_*`, `carga.csv`, `ambiente.txt`, `config_*` | evidências de suporte |
 
-## 5. Coletar os resultados (para o Windows) e desligar
-
-```powershell
-scp -i C:\caminho\vm-bench_key.pem "azureuser@<IP>:/home/azureuser/saas-roupas/backend/results/*" "C:\Users\vness\Documents\Claude\resultados-tcc2\"
-```
-Depois **Stop (deallocate)** a VM no Portal para parar de gastar.
-
-## 6. Analisar
-
-O `resumo.csv` tem `volume, db, op, entity, n, mediana_ms`. A partir dele:
-- **Tabelas** OLAP e OLTP por volume (MySQL × ClickHouse).
-- **Gráficos** tempo × volume (curvas que divergem) por operação — a evidência visual da conclusão.
-
-Me mande o `resumo.csv` que eu monto as tabelas/gráficos e o texto de Resultados/Discussão/Conclusão.
+Coletar para o Windows: `gh codespace cp -e -r -c <codespace> "remote:/workspaces/saas-roupas/backend/results" <pasta-local>`

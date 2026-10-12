@@ -7,7 +7,8 @@
 | Engine de tabela | InnoDB (padrão) | MergeTree (obrigatório) |
 | PRIMARY KEY auto | `AUTO_INCREMENT` | Gerenciado pela app (`MAX(id)+1`) |
 | FOREIGN KEY | Suportado e validado | **Não suportado** — apenas referência lógica |
-| Tipos numéricos | `INT`, `DECIMAL(10,2)` | `UInt64`, `Float64` |
+| Tipos numéricos | `INT`, `DECIMAL(10,2)` | `UInt32`, `Decimal(10,2)` (equivalentes, para resultados idênticos) |
+| Chave de ordenação | B-tree pelo `PRIMARY KEY` (id) | `ORDER BY (data_venda, id)` em `vendas` — voltada à análise temporal |
 | Tipos de data | `DATETIME` | `DateTime` |
 | NOT NULL default | Linhas nulas proibidas | ClickHouse armazena defaults implícitos |
 
@@ -19,12 +20,17 @@
 ## 3. UPDATE
 
 - **MySQL**: `UPDATE tabela SET col=val WHERE id=?` — atômico e imediato.
-- **ClickHouse**: `ALTER TABLE tabela UPDATE col=val WHERE id=?` — é uma **mutation** assíncrona. O dado pode não aparecer atualizado imediatamente em queries subsequentes (eventual consistency). Para o MVP isso é aceitável; em produção usa-se `OPTIMIZE TABLE FINAL` ou estratégias de upsert com `ReplacingMergeTree`.
+- **ClickHouse**: `ALTER TABLE tabela UPDATE col=val WHERE id=?` — é uma **mutation**: reescreve os *parts* afetados. Por padrão é assíncrona; o protótipo usa `mutations_sync=1`, então a chamada só retorna depois de aplicada (resposta consistente e medição justa).
+- **Restrição descoberta no benchmark:** colunas que fazem parte da **chave de ordenação** (`ORDER BY`) **não podem** ser alteradas por mutation (`Cannot UPDATE key column`). Como `vendas` é ordenada por `(data_venda, id)`, mudar a data de uma venda exige **remover e reinserir** a linha (`VendaChRepo.update`). O update comum (quantidade, preço, loja, vendedor, produto) altera só colunas fora da chave.
+  - Na 1ª versão do benchmark isso fazia **todos** os updates do ClickHouse falharem — o tempo medido era o de um erro. Corrigido no protocolo v2.
 
 ## 4. DELETE
 
 - **MySQL**: `DELETE FROM tabela WHERE id=?` — imediato.
-- **ClickHouse**: `ALTER TABLE tabela DELETE WHERE id=?` — também uma mutation assíncrona. O registro pode ainda aparecer em queries por alguns milissegundos até a mutation ser aplicada.
+- **ClickHouse — duas formas, ambas medidas no benchmark:**
+  - `ALTER TABLE tabela DELETE WHERE id=?` (mutation, `mutations_sync=1`): reescreve os *parts* que contêm a linha.
+  - `DELETE FROM tabela WHERE id=?` (**DELETE leve**, desde a 23.3): só marca a linha numa máscara oculta (`_row_exists`); a remoção física fica para os *merges*. Registrado como `delete_leve`.
+  - Não há UPDATE "leve" na versão usada (24.8).
 
 ## 5. Queries analíticas (OLAP)
 
@@ -33,7 +39,7 @@
 | `DATE_FORMAT(dt, '%Y-%m')` | `formatDateTime(dt, '%Y-%m')` |
 | `COALESCE(x, y)` | `COALESCE(x, y)` (igual) |
 | `CASE WHEN ... END` | `if(cond, a, b)` (mais comum no CH) |
-| `LEFT JOIN` | `LEFT JOIN` (suportado, mas CH prefere desnormalização) |
+| `JOIN` / `LEFT JOIN` | Mesmos tipos de JOIN nas duas versões (o CH executa *hash join*; o MySQL, *nested loop* com índice) |
 | Subqueries correlacionadas | Evitar — CH performa mal com subqueries |
 
 ## 6. Estrutura do projeto afetada
