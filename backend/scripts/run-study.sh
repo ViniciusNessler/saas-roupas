@@ -153,10 +153,24 @@ run_combo(){ # $1=adapter  $2=volume
   for id in $(ids "$TOTAL" "$maxid" 1001); do http PUT "$API/vendas/$id" "$UPD_JSON"; done
   for id in $(ids "$TOTAL" "$maxid" 2002); do http DELETE "$API/vendas/$id"; done
 
-  # 5b) ClickHouse: também o DELETE leve (DELETE FROM), alternativa à mutation
+  # 5b) só no ClickHouse: as outras formas de alterar dados
   if [ "$ADAPTER" = clickhouse ]; then
+    # UPDATE leve (patch parts) e, logo depois, os relatórios com esses patches ainda pendentes
+    start_backend CH_UPDATE_MODE=leve
+    for id in $(ids "$TOTAL" "$maxid" 4004); do http PUT "$API/vendas/$id" "$UPD_JSON"; done
+    ch -q "SELECT count() FROM system.parts WHERE database = 'saas_roupas' AND table = 'vendas' AND active AND startsWith(name, 'patch')" \
+      > "$RES/patches_pendentes_${VOL}.txt" 2>&1 || true
+    start_backend RELATORIO_OP=relatorio_com_patches
+    for slug in $SLUGS; do for ((k = 0; k < TOTAL; k++)); do http GET "$API/relatorios/$slug"; done; done
+
+    # DELETE leve
     start_backend CH_DELETE_MODE=leve
     for id in $(ids "$TOTAL" "$maxid" 3003); do http DELETE "$API/vendas/$id"; done
+
+    # mutations sem esperar terminar, como em Paromova et al. (2022): mede só o aceite do pedido
+    start_backend CH_UPDATE_MODE=async CH_DELETE_MODE=async
+    for id in $(ids "$TOTAL" "$maxid" 5005); do http PUT "$API/vendas/$id" "$UPD_JSON"; done
+    for id in $(ids "$TOTAL" "$maxid" 6006); do http DELETE "$API/vendas/$id"; done
   fi
 
   pkill -f "node src/index.js" 2>/dev/null || true

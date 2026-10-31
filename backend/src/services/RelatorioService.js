@@ -2,7 +2,8 @@ const { withBenchmark } = require('../benchmark/logger');
 const { RelatorioRepo } = require('../repositories/factory');
 
 async function executar(slug) {
-  return withBenchmark('relatorio', slug, () => RelatorioRepo.executar(slug));
+  // RELATORIO_OP permite separar no log uma rodada especial (ex.: relatórios com patches pendentes)
+  return withBenchmark(process.env.RELATORIO_OP || 'relatorio', slug, () => RelatorioRepo.executar(slug));
 }
 
 function listar() {

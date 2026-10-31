@@ -99,7 +99,7 @@ fs.writeFileSync(path.join(dir, 'resumo.csv'), resumoCsv + '\n');
 const comps = [];
 for (const g of Object.values(groups)) {
   if (g.db !== 'clickhouse') continue;
-  const myOp = g.op === 'delete_leve' ? 'delete' : g.op;
+  const myOp = g.op.split('_')[0];   // update_leve, delete_async, relatorio_com_patches... comparam com a operação base do MySQL
   const m = groups[`${g.volume}|mysql|${myOp}|${g.entity}`];
   if (!m || !m.ok.length || !g.ok.length) continue;
   const sm = describe(m.ok), sc = describe(g.ok), d = cliffsDelta(m.ok, g.ok);

@@ -63,7 +63,8 @@ const tables = [
     valor_unitario Decimal(10,2),
     valor_total Decimal(10,2),
     data_venda DateTime
-  ) ENGINE = MergeTree() ORDER BY (data_venda, id)`,
+  ) ENGINE = MergeTree() ORDER BY (data_venda, id)
+    SETTINGS enable_block_number_column = 1, enable_block_offset_column = 1`,   // exigidas pelo UPDATE leve (>= 25.8)
 ];
 
 async function run() {

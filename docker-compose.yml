@@ -23,7 +23,8 @@ services:
       retries: 20
 
   clickhouse:
-    image: clickhouse/clickhouse-server:24.8
+    # 26.8 LTS: tem o UPDATE leve (patch parts). A coleta anterior (v2) usou a 24.8.
+    image: clickhouse/clickhouse-server:${CLICKHOUSE_VERSION:-26.8.36.3}
     container_name: saas-clickhouse
     # O ClickHouse usa por padrão até 90% da memória disponível ao container.
     mem_limit: 8g
