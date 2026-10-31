@@ -1,17 +1,10 @@
 /*
- * Análise do estudo de escala (protocolo v2). Lê results/ e gera:
- *
- *   results/resumo.csv       estatística descritiva por volume × banco × operação
- *                            (n, erros, média, DP, CV, mín, p25, mediana, p75, IQR, p95, máx)
- *   results/comparativo.csv  MySQL × ClickHouse por volume × operação: razão das medianas,
- *                            teste de Mann-Whitney (p-valor) e tamanho de efeito (delta de Cliff)
- *   results/validacao.txt    checagens de validade interna: dados idênticos nos dois bancos,
- *                            saídas dos relatórios equivalentes, erros e falhas HTTP
+ * Junta os .jsonl de results/ e gera:
+ *   resumo.csv       estatística por volume, banco e operação (mediana, IQR, p95, CV...)
+ *   comparativo.csv  MySQL x ClickHouse, com Mann-Whitney e delta de Cliff
+ *   validacao.txt    os dados e as saídas dos relatórios ficaram iguais nos dois bancos?
  *
  *   node scripts/bench-report.js results
- *
- * Descarta as primeiras WARM execuções de cada grupo (ordem pelo número de sequência) e
- * considera apenas medições com status "ok"; os erros são contados à parte.
  */
 const fs = require('fs');
 const path = require('path');

@@ -13,3 +13,6 @@ backend/benchmark.jsonl
 # Logs diversos / SO
 *.log
 .DS_Store
+
+# Resultados do estudo (copiados à parte para a análise)
+backend/results*/

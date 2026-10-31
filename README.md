@@ -1,74 +1,75 @@
-# SaaS Roupas — MySQL vs ClickHouse (TCC)
+# SaaS Roupas — MySQL x ClickHouse
 
-Protótipo SaaS de vendas de roupas em **duas versões equivalentes** (MySQL e ClickHouse),
-para comparação descritiva e quantitativa entre um banco orientado a linha e um orientado a coluna.
+Protótipo de um sistema de vendas para lojas de roupa, feito para o meu TCC de Engenharia de
+Software (UNIVILLE). A ideia é simples: a mesma aplicação roda sobre um banco orientado a linha
+(MySQL) ou sobre um banco orientado a coluna (ClickHouse), e eu meço o que acontece com os
+relatórios e com as escritas do dia a dia em cada caso.
 
-O **frontend, controllers, services, rotas e lógica de negócio são idênticos** nas duas versões.
-A única coisa que muda é a camada de persistência, selecionada pela variável `DB_ADAPTER`.
+Frontend, rotas, controllers e services são os mesmos nas duas versões. O que muda é só a camada
+de repositórios, escolhida pela variável `DB_ADAPTER` no `.env` do backend.
 
 ## Estrutura
 
 ```
 saas-roupas/
-├── backend/                 Node.js + Express
+├── backend/                Node.js + Express
 │   ├── src/
-│   │   ├── controllers/     HTTP (genérico de CRUD + relatórios + benchmark)
-│   │   ├── services/        Lógica de negócio + wrapper de benchmark
-│   │   ├── repositories/
-│   │   │   ├── interface/   Contrato BaseRepository
-│   │   │   ├── mysql/       Implementação MySQL
-│   │   │   ├── clickhouse/  Implementação ClickHouse
-│   │   │   └── factory.js   Injeta o adapter conforme DB_ADAPTER
-│   │   ├── benchmark/       Logger (grava benchmark.jsonl)
-│   │   ├── config/          Conexões MySQL e ClickHouse
-│   │   └── routes/          Definição dos endpoints
-│   └── scripts/             migrate-*, seed, seedLarge
-├── frontend/                React + Vite
-└── *.md                     DEPLOY e diferenças MySQL/ClickHouse
+│   │   ├── repositories/   mysql/ e clickhouse/ (mesmo contrato) + factory.js
+│   │   ├── services/       regras de negócio
+│   │   ├── benchmark/      cronômetro (withBenchmark) e o log em JSONL
+│   │   ├── controllers/    HTTP
+│   │   └── routes/
+│   └── scripts/            migrações, carga de dados e o estudo de escala
+├── frontend/               React + Vite
+├── docs/
+│   ├── adaptacoes-clickhouse.md   o que precisou mudar para o ClickHouse funcionar
+│   ├── benchmark.md               como o estudo foi montado e como rodar
+│   └── apresentacao.md            roteiro da demonstração para a banca
+└── docker-compose.yml      MySQL 8.4 + ClickHouse 26.8 LTS, 8 GB / 4 vCPU cada
 ```
 
-## Como rodar localmente
+## Rodando local
 
-### Backend
+Precisa de Docker e Node 20+.
+
+```bash
+docker compose up -d                 # sobe os dois bancos
+
+cd backend
+cp .env.example .env                 # DB_ADAPTER=mysql ou clickhouse
+npm install
+npm run migrate:mysql                # ou migrate:clickhouse
+npm run seed                         # poucos dados, só para navegar
+npm run dev                          # http://localhost:3001
+
+cd ../frontend
+cp .env.example .env
+npm install
+npm run dev                          # http://localhost:5173
+```
+
+Para trocar de banco, mude `DB_ADAPTER` e reinicie o backend. Nenhuma outra linha muda.
+
+Telas: Dashboard, Lojas, Vendedores, Produtos, Estoque, Vendas, Relatórios e Benchmark.
+
+## O estudo
+
+Cada insert, update, delete e relatório passa por um cronômetro (`withBenchmark`) e vira uma
+linha em `benchmark.jsonl`. O script `scripts/run-study.sh` automatiza o estudo inteiro: carrega
+50 mil, 250 mil, 1 milhão e 5 milhões de vendas, mede tudo nos dois bancos e gera as estatísticas.
+
 ```bash
 cd backend
-cp .env.example .env          # ajuste DB_ADAPTER (mysql|clickhouse) e credenciais
-npm install
-
-# MySQL:
-node scripts/migrate-mysql.js
-# ClickHouse:
-# node scripts/migrate-clickhouse.js
-
-node scripts/seed.js          # dados mínimos (respeita DB_ADAPTER)
-# node scripts/seedLarge.js   # ~50k vendas para o benchmark
-
-npm run dev                   # http://localhost:3001
+VOLUMES="50000" REPS=5 npm run estudo    # teste rápido (uns 5 minutos)
+npm run estudo                           # completo (algumas horas)
+npm run relatorio                        # refaz resumo.csv, comparativo.csv e validacao.txt
 ```
 
-### Frontend
-```bash
-cd frontend
-cp .env.example .env          # VITE_DB_LABEL=mysql (apenas rótulo na UI)
-npm install
-npm run dev                   # http://localhost:5173
-```
+O protocolo e as decisões de medição estão em [docs/benchmark.md](docs/benchmark.md).
 
-Para alternar de banco, basta mudar `DB_ADAPTER` no `.env` do backend e reiniciar — nada mais muda no código.
+## Sobre o uso de IA
 
-## Telas
-Dashboard · Lojas · Vendedores · Produtos · Estoque · Vendas · Relatórios (OLAP) · Benchmark
-
-## Documentação para o TCC
-- [DEPLOY.md](DEPLOY.md) — passo a passo das duas VMs na Azure
-- [DIFERENCAS_MYSQL_CLICKHOUSE.md](DIFERENCAS_MYSQL_CLICKHOUSE.md) — adaptações e implicações para o benchmark
-
-## Benchmark
-As operações de `insert`, `update`, `delete` e execução de relatórios OLAP são cronometradas e
-gravadas em `backend/benchmark.jsonl` (uma linha JSON por operação), com: banco, operação, entidade,
-início, fim, duração em ms, status e observação. Visualize na tela **Benchmark** ou importe o
-arquivo no Excel/Python para análise.
-
-> Nota: nos repositórios ClickHouse, `UPDATE`/`DELETE` usam `mutations_sync=1` para que a mutation
-> seja aplicada de forma síncrona. Sem isso, a duração medida refletiria apenas o enfileiramento da
-> mutation, distorcendo a comparação com o MySQL.
+Usei o Claude Opus 5.5 (Anthropic) como assistente de programação durante o desenvolvimento,
+principalmente para gerar código repetitivo dos repositórios, montar os scripts de medição e
+revisar consultas. Os requisitos, a modelagem, as escolhas do protocolo e a interpretação dos
+resultados são meus, e todo trecho gerado foi lido, testado e ajustado antes de entrar aqui.

@@ -8,7 +8,10 @@
     "seed": "node scripts/seed.js",
     "seed:large": "node scripts/seedLarge.js",
     "migrate:mysql": "node scripts/migrate-mysql.js",
-    "migrate:clickhouse": "node scripts/migrate-clickhouse.js"
+    "migrate:clickhouse": "node scripts/migrate-clickhouse.js",
+    "estudo": "bash scripts/run-study.sh",
+    "relatorio": "node scripts/bench-report.js results",
+    "planos": "node scripts/explain.js"
   },
   "dependencies": {
     "@clickhouse/client": "^1.4.0",

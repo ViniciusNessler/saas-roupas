@@ -1,23 +1,10 @@
 #!/usr/bin/env bash
-# ============================================================================
-# Estudo de escala TCC 2 (protocolo v2) — mesma máquina, os dois bancos em SEQUÊNCIA.
-# Para cada volume e cada banco: sobe só aquele banco (mesmo envelope de CPU/RAM),
-# recria o schema, semeia o volume, estabiliza, registra a "impressão digital" dos dados,
-# roda OLAP (6 relatórios) e OLTP (insert/update/delete) e salva os tempos.
+# Estudo de escala do TCC: MySQL x ClickHouse na mesma máquina, um banco de cada vez.
+# Para cada volume: sobe só um dos bancos, recria as tabelas, carrega os dados, mede os
+# relatórios e as escritas pela API e guarda tudo em results/. Detalhes em docs/benchmark.md.
 #
-# Controles de validade (ver BENCHMARK_TCC2.md):
-#  - mesmo workload nos dois bancos: dados determinísticos + IDs de update/delete determinísticos
-#  - toda requisição tem o HTTP verificado; falhas vão para results/falhas_http.txt
-#  - 1ª execução de cada relatório guarda a saída -> prova de equivalência das consultas
-#  - estabilização pós-carga simétrica (ANALYZE TABLE / OPTIMIZE TABLE FINAL)
-#  - ordem dos bancos alternada a cada volume (contrabalanceamento)
-#  - ambiente e configuração de cada SGBD registrados em results/
-#
-# Uso (no Codespace/VM, dentro de saas-roupas/backend):
-#   bash scripts/run-study.sh                    # volumes padrão: 50k 250k 1M 5M
-#   VOLUMES="50000" REPS=5 bash scripts/run-study.sh   # teste rápido
-# Resultados: results/bench_<banco>_<volume>.jsonl + resumo/comparativo/validacao (bench-report.js)
-# ============================================================================
+#   bash scripts/run-study.sh                           # 50k, 250k, 1M e 5M
+#   VOLUMES="50000" REPS=5 bash scripts/run-study.sh    # teste rápido
 set -euo pipefail
 cd "$(dirname "$0")/.."                      # -> saas-roupas/backend
 ROOT="$(cd .. && pwd)"                        # -> saas-roupas
@@ -184,7 +171,7 @@ run_combo(){ # $1=adapter  $2=volume
   if [ "$FAILS" != 0 ] || [ "$errs" != 0 ]; then echo -e "\033[1;31m  ATENÇÃO: houve falhas — ver $FALHAS\033[0m"; fi
 }
 
-log "Iniciando estudo (protocolo v2) | volumes: $VOLUMES | reps: $REPS (+${WARM} aquecimento)"
+log "Iniciando estudo | volumes: $VOLUMES | reps: $REPS (+${WARM} aquecimento)"
 echo "--- execução iniciada em $(date -u) ---" >> "$FALHAS"
 capture_env
 i=0
