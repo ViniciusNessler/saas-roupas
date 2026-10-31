@@ -155,6 +155,10 @@ run_combo(){ # $1=adapter  $2=volume
 
   # 5b) só no ClickHouse: as outras formas de alterar dados
   if [ "$ADAPTER" = clickhouse ]; then
+    # INSERT sem o async_insert (padrão ligado a partir da 25.x): separa o custo do buffer
+    start_backend CH_INSERT_MODE=direto
+    for ((k = 0; k < TOTAL; k++)); do http POST "$API/vendas" "$INS_JSON"; done
+
     # UPDATE leve (patch parts) e, logo depois, os relatórios com esses patches ainda pendentes
     start_backend CH_UPDATE_MODE=leve
     for id in $(ids "$TOTAL" "$maxid" 4004); do http PUT "$API/vendas/$id" "$UPD_JSON"; done

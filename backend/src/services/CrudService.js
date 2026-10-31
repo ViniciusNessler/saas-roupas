@@ -13,10 +13,10 @@ class CrudService {
   findAll()        { return this.repo.findAll(); }
   findById(id)     { return this.repo.findById(id); }
 
-  create(data)     { return withBenchmark('insert', this.entity, () => this.repo.create(data)); }
+  // insertOp/updateOp/deleteOp: o repositório do ClickHouse dá nomes próprios às variantes (ex.: 'update_leve')
+  create(data)     { return withBenchmark(this.repo.insertOp || 'insert', this.entity, () => this.repo.create(data)); }
   update(id, data) { return withBenchmark(this.repo.updateOp || 'update', this.entity, () => this.repo.update(id, data)); }
-  // O repositório pode expor um nome de operação próprio (ex.: 'delete_leve' no ClickHouse).
-  remove(id)       { return withBenchmark(this.repo.deleteOp || 'delete', this.entity, () => this.repo.remove(id)); }
+  remove(id)      { return withBenchmark(this.repo.deleteOp || 'delete', this.entity, () => this.repo.remove(id)); }
 }
 
 module.exports = CrudService;

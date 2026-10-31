@@ -15,6 +15,7 @@ const SET_VENDA = `loja_id = {loja_id:UInt32}, vendedor_id = {vendedor_id:UInt32
  *  - data_venda está na chave de ordenação e não pode ser alterada: trocar a data = apagar e inserir de novo.
  *
  * Para o benchmark, o modo de escrita é escolhido por variável de ambiente:
+ *  CH_INSERT_MODE = direto  desliga o async_insert, que é padrão a partir da 25.x (o insert espera o buffer)
  *  CH_UPDATE_MODE / CH_DELETE_MODE = (vazio) mutation esperando terminar (mutations_sync = 1)
  *                                    leve    UPDATE leve (patch parts, >= 25.8) / DELETE leve (DELETE FROM)
  *                                    async   mutation sem esperar terminar (só mede o aceite do pedido)
@@ -23,6 +24,7 @@ class VendaChRepo extends BaseRepository {
   get client() { return getClickhouseClient(); }
 
   // nomes das operações no log do benchmark
+  get insertOp() { return process.env.CH_INSERT_MODE === 'direto' ? 'insert_direto' : 'insert'; }
   get updateOp() { return { leve: 'update_leve', async: 'update_async' }[process.env.CH_UPDATE_MODE] || 'update'; }
   get deleteOp() { return { leve: 'delete_leve', async: 'delete_async' }[process.env.CH_DELETE_MODE] || 'delete'; }
 
@@ -60,7 +62,8 @@ class VendaChRepo extends BaseRepository {
       quantidade: Number(quantidade), valor_unitario: r2(valor_unitario), valor_total,
       data_venda: fmtDateTime(data.data_venda || new Date()),
     };
-    await this.client.insert({ table: 'vendas', values: [row], format: 'JSONEachRow' });
+    const settings = process.env.CH_INSERT_MODE === 'direto' ? { async_insert: 0 } : undefined;
+    await this.client.insert({ table: 'vendas', values: [row], format: 'JSONEachRow', clickhouse_settings: settings });
     return row;
   }
 
