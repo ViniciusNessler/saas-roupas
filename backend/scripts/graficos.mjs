@@ -69,7 +69,7 @@ const escritas = {
   facet: {
     column: {
       field: 'operacao', sort: OPERACOES.map(o => o.titulo),
-      header: { title: null, labelFontSize: 14, labelFontWeight: 'bold', labelColor: TINTA, labelAnchor: 'start', labelPadding: 8 },
+      header: { title: null, labelFontSize: 15, labelFontWeight: 'bold', labelColor: TINTA, labelAnchor: 'start', labelPadding: 8 },
     },
   },
   spacing: 28,
@@ -97,7 +97,7 @@ const escritas = {
       },
       {   // rótulo só no último ponto, na cor do texto (a cor da série fica na marca)
         transform: [{ filter: 'datum.ultimo' }],
-        mark: { type: 'text', align: 'left', dx: 9, fontSize: 12, color: TINTA },
+        mark: { type: 'text', align: 'left', dx: 9, fontSize: 13, color: TINTA },
         encoding: { text: { field: 'rotulo' }, color: { value: TINTA } },
       },
     ],
@@ -106,9 +106,9 @@ const escritas = {
     font: 'Helvetica, Arial, sans-serif',
     background: '#ffffff',
     view: { stroke: null },
-    axis: { labelFontSize: 11, labelColor: APAGADO },
+    axis: { labelFontSize: 12.5, labelColor: APAGADO },
     legend: {
-      orient: 'top', direction: 'horizontal', labelFontSize: 12, labelColor: TINTA2,
+      orient: 'top', direction: 'horizontal', labelFontSize: 13, labelColor: TINTA2,
       symbolType: 'stroke', symbolSize: 300, symbolStrokeWidth: 2.5, columnPadding: 22, offset: 14, labelLimit: 0, gridAlign: 'none',
     },
   },
