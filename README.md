@@ -62,6 +62,7 @@ cd backend
 VOLUMES="50000" REPS=5 npm run estudo    # teste rápido (uns 5 minutos)
 npm run estudo                           # completo (algumas horas)
 npm run relatorio                        # refaz resumo.csv, comparativo.csv e validacao.txt
+npm run graficos                         # gera os gráficos do artigo em results/graficos/ (Vega-Lite)
 ```
 
 O protocolo e as decisões de medição estão em [docs/benchmark.md](docs/benchmark.md).
