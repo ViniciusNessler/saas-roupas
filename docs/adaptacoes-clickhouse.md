@@ -18,14 +18,14 @@ O que precisou mudar nos repositórios para a mesma aplicação rodar sobre o Cl
 
 - **MySQL**: INSERT padrão com `AUTO_INCREMENT` retorna o ID via `result.insertId`.
 - **ClickHouse**: não há `AUTO_INCREMENT`. A aplicação consulta `MAX(id)+1` antes de cada INSERT. Com concorrência isso pode colidir; no protótipo serve, num sistema real seria UUID.
-- Na 26.8 o padrão é `async_insert=1` com espera da confirmação: o insert entra num buffer e só retorna quando o buffer é gravado (algumas dezenas de ms). Mantive o padrão como medição principal e meço também `insert_direto` (`async_insert=0`), que é o comportamento da 24.8.
+- Na 26.8 o padrão é `async_insert=1` com espera da confirmação: o insert entra num buffer e só retorna quando o buffer é gravado (algumas dezenas de ms). Mantive o padrão como medição principal e meço também `insert_direto` (`async_insert=0`), que grava sem passar pelo buffer.
 
 ## 3. UPDATE
 
 - **MySQL**: `UPDATE tabela SET col=val WHERE id=?` — atômico e imediato.
 - **ClickHouse**: `ALTER TABLE tabela UPDATE col=val WHERE id=?` — é uma **mutation**: reescreve os *parts* afetados. Por padrão é assíncrona; o protótipo usa `mutations_sync=1`, então a chamada só retorna depois de aplicada (resposta consistente e medição justa).
 - **Restrição descoberta no benchmark:** colunas que fazem parte da **chave de ordenação** (`ORDER BY`) **não podem** ser alteradas por mutation (`Cannot UPDATE key column`). Como `vendas` é ordenada por `(data_venda, id)`, mudar a data de uma venda exige **remover e reinserir** a linha (`VendaChRepo.update`). O update comum (quantidade, preço, loja, vendedor, produto) altera só colunas fora da chave.
-  - Na 1ª versão do benchmark isso fazia **todos** os updates do ClickHouse falharem, e o tempo medido era o de um erro. Corrigido na v2.
+  - Na primeira versão do protocolo isso fazia **todos** os updates do ClickHouse falharem, e o tempo medido era o de um erro. Foi corrigido antes da coleta final.
 - **UPDATE leve (26.8):** `UPDATE vendas SET ... WHERE id = ?` grava só um *patch part* com as colunas alteradas; a junção com os dados originais acontece na leitura e depois nos merges. Exige `enable_block_number_column = 1` e `enable_block_offset_column = 1` na tabela (já no `migrate-clickhouse.js`). No protótipo é ativado com `CH_UPDATE_MODE=leve`.
 
 ## 4. DELETE

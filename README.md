@@ -1,7 +1,7 @@
 # SaaS Roupas — MySQL x ClickHouse
 
 Protótipo de um sistema de vendas para lojas de roupa, feito para o meu TCC de Engenharia de
-Software (UNIVILLE). A ideia é simples: a mesma aplicação roda sobre um banco orientado a linha
+Software (Univille). A ideia é simples: a mesma aplicação roda sobre um banco orientado a linha
 (MySQL) ou sobre um banco orientado a coluna (ClickHouse), e eu meço o que acontece com os
 relatórios e com as escritas do dia a dia em cada caso.
 
@@ -23,8 +23,7 @@ saas-roupas/
 ├── frontend/               React + Vite
 ├── docs/
 │   ├── adaptacoes-clickhouse.md   o que precisou mudar para o ClickHouse funcionar
-│   ├── benchmark.md               como o estudo foi montado e como rodar
-│   └── apresentacao.md            roteiro da demonstração para a banca
+│   └── benchmark.md               como o estudo foi montado e como rodar
 └── docker-compose.yml      MySQL 8.4 + ClickHouse 26.8 LTS, 8 GB / 4 vCPU cada
 ```
 

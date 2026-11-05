@@ -8,11 +8,8 @@ Como os números do TCC foram gerados e como repetir.
   Cloud, mas não havia capacidade na região.
 - Os dois bancos rodam no mesmo host, um de cada vez (o outro fica parado), e cada um com o mesmo
   limite de 8 GB de RAM e 4 vCPUs (`docker-compose.yml`).
-- MySQL 8.4 com buffer pool de 5 GB. ClickHouse com a política de memória padrão.
-- Duas rodadas:
-  - **v2:** ClickHouse 24.8. Só existiam mutations e o DELETE leve.
-  - **v3:** ClickHouse 26.8 LTS. Já tem o UPDATE leve (*patch parts*). Repeti tudo para ver se o
-    resultado da v2 continuava valendo numa versão atual.
+- MySQL 8.4 com buffer pool de 5 GB. ClickHouse 26.8 LTS, que já tem o UPDATE leve (*patch parts*),
+  com a política de memória padrão.
 - O script registra versões e configurações em `results/ambiente.txt` e `results/config_*.txt`.
 
 ## O que é medido
@@ -28,9 +25,9 @@ Variantes medidas só no ClickHouse (selecionadas por variável de ambiente no b
 | Operação no log | O que é |
 |---|---|
 | `insert` | INSERT com o padrão da 26.8 (`async_insert=1`, espera a confirmação) |
-| `insert_direto` | INSERT com `async_insert=0`, igual ao da 24.8 |
+| `insert_direto` | INSERT com `async_insert=0`: grava direto, sem passar pelo buffer |
 | `update` | `ALTER TABLE ... UPDATE` com `mutations_sync=1` |
-| `update_leve` | `UPDATE ... SET` (patch part), só na v3 |
+| `update_leve` | `UPDATE ... SET` (patch part) |
 | `update_async` | mutation com `mutations_sync=0`: mede só o aceite do comando |
 | `delete` | `ALTER TABLE ... DELETE` com `mutations_sync=1` |
 | `delete_leve` | `DELETE FROM` (máscara `_row_exists`) |
@@ -77,8 +74,6 @@ npm run estudo                                   # completo
 
 Para deixar rodando sem o terminal aberto:
 `setsid nohup bash scripts/run-study.sh > /tmp/study.log 2>&1 < /dev/null &`
-
-A v2 foi gerada a partir do commit `636be7a` (ClickHouse 24.8); para refazê-la, use esse commit.
 
 ## Saídas (`backend/results/`)
 
