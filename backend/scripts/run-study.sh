@@ -14,10 +14,13 @@ REPS="${REPS:-30}"          # medições por operação (n da amostra)
 WARM="${WARM:-3}"           # execuções de aquecimento (descartadas na análise)
 TOTAL=$((WARM + REPS))
 API="http://localhost:3001/api"
-SLUGS="faturamento-loja-mes top-produtos desempenho-vendedores giro-estoque faturamento-categoria evolucao-vendas"
+SLUGS="${SLUGS:-faturamento-loja-mes top-produtos desempenho-vendedores giro-estoque faturamento-categoria evolucao-vendas}"
+# Rodada complementar: ONLY_REPORTS=1 mede só os relatórios; MYSQL_INDICE_DATA=1 cria índice em vendas(data_venda)
+# no MySQL (o ClickHouse já é ordenado por data), necessário para comparar relatórios com filtro de período.
+ONLY_REPORTS="${ONLY_REPORTS:-0}"; MYSQL_INDICE_DATA="${MYSQL_INDICE_DATA:-0}"
 INS_JSON='{"loja_id":1,"vendedor_id":1,"produto_id":1,"quantidade":2,"valor_unitario":99.90,"data_venda":"2026-06-15"}'
 UPD_JSON='{"loja_id":2,"vendedor_id":7,"produto_id":15,"quantidade":3,"valor_unitario":120.00}'   # correção de venda (sem mudar a data)
-RES="$PWD/results"; mkdir -p "$RES"
+RES="${RES:-$PWD/results}"; mkdir -p "$RES"
 FALHAS="$RES/falhas_http.txt"; touch "$FALHAS"
 printf '{"warm":%s,"reps":%s,"volumes":"%s"}\n' "$WARM" "$REPS" "$VOLUMES" > "$RES/meta.json"
 [ -f "$RES/carga.csv" ] || echo "volume,db,segundos_seed" > "$RES/carga.csv"
@@ -116,6 +119,10 @@ run_combo(){ # $1=adapter  $2=volume
   DB_ADAPTER="$ADAPTER" node --max-old-space-size=6144 scripts/seedLarge.js "$VOL"
   echo "$VOL,$ADAPTER,$(awk -v a="$t0" -v b="$(date +%s%N)" 'BEGIN { printf "%.1f", (b - a) / 1e9 }')" >> "$RES/carga.csv"
 
+  if [ "$ADAPTER" = mysql ] && [ "$MYSQL_INDICE_DATA" = 1 ]; then
+    my saas_roupas -e "CREATE INDEX idx_vendas_data_venda ON vendas (data_venda)"
+  fi
+
   # 2) estabiliza, registra configuração e a impressão digital dos dados carregados
   quiesce
   capture_db_config
@@ -136,6 +143,7 @@ run_combo(){ # $1=adapter  $2=volume
   done
 
   # 5) OLTP — insert (append); update e delete em IDs existentes, determinísticos
+  if [ "$ONLY_REPORTS" != 1 ]; then
   for ((k = 0; k < TOTAL; k++)); do http POST "$API/vendas" "$INS_JSON"; done
   for id in $(ids "$TOTAL" "$maxid" 1001); do http PUT "$API/vendas/$id" "$UPD_JSON"; done
   for id in $(ids "$TOTAL" "$maxid" 2002); do http DELETE "$API/vendas/$id"; done
@@ -163,6 +171,7 @@ run_combo(){ # $1=adapter  $2=volume
     for id in $(ids "$TOTAL" "$maxid" 5005); do http PUT "$API/vendas/$id" "$UPD_JSON"; done
     for id in $(ids "$TOTAL" "$maxid" 6006); do http DELETE "$API/vendas/$id"; done
   fi
+  fi   # ONLY_REPORTS
 
   pkill -f "node src/index.js" 2>/dev/null || true
   cp benchmark.jsonl "$RES/bench_${ADAPTER}_${VOL}.jsonl"
@@ -182,4 +191,4 @@ for vol in $VOLUMES; do
   i=$((i + 1))
 done
 log "ESTUDO COMPLETO. Gerando resumo, comparativo e validação..."
-node scripts/bench-report.js results
+node scripts/bench-report.js "$RES"

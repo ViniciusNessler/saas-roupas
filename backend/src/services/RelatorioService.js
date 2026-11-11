@@ -21,6 +21,12 @@ function slugToNome(slug) {
     'giro-estoque':            'Giro de estoque por produto e loja',
     'faturamento-categoria':   'Faturamento por categoria',
     'evolucao-vendas':         'Evolução de vendas ao longo do tempo',
+    'faturamento-loja-ultimo-mes':       'Faturamento por loja no último mês',
+    'ranking-vendedores-loja':           'Ranking de vendedores dentro de cada loja',
+    'produtos-acima-media-categoria':    'Produtos com receita acima da média da categoria',
+    'vendedores-ticket-trimestre':       'Vendedores com ticket médio acima da média no trimestre',
+    'produtos-vendedores-distintos-mes': 'Produtos e vendedores distintos por mês',
+    'vendas-faixa-valor':                'Vendas por faixa de valor em cada loja',
   };
   return nomes[slug] || slug;
 }
