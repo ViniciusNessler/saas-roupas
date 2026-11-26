@@ -24,7 +24,7 @@ saas-roupas/
 ├── docs/
 │   ├── adaptacoes-clickhouse.md   o que precisou mudar para o ClickHouse funcionar
 │   └── benchmark.md               como o estudo foi montado e como rodar
-└── docker-compose.yml      MySQL 8.4 + ClickHouse 26.8 LTS, 8 GB / 4 vCPU cada
+└── docker-compose.yml      MySQL 8.4.13 + ClickHouse 26.8.36.3 LTS, 8 GB / 4 vCPU cada
 ```
 
 ## Rodando local

@@ -14,10 +14,12 @@ REPS="${REPS:-30}"          # medições por operação (n da amostra)
 WARM="${WARM:-3}"           # execuções de aquecimento (descartadas na análise)
 TOTAL=$((WARM + REPS))
 API="http://localhost:3001/api"
-SLUGS="${SLUGS:-faturamento-loja-mes top-produtos desempenho-vendedores giro-estoque faturamento-categoria evolucao-vendas}"
-# Rodada complementar: ONLY_REPORTS=1 mede só os relatórios; MYSQL_INDICE_DATA=1 cria índice em vendas(data_venda)
+# Coleta final: seis relatórios com construções de SQL diferentes (período, CTE, janela, agregação condicional,
+# subconsulta, contagem de distintos). Os seis relatórios das rodadas anteriores podem ser passados em SLUGS.
+SLUGS="${SLUGS:-faturamento-loja-ultimo-mes vendedores-ticket-trimestre ranking-vendedores-loja vendas-faixa-valor produtos-acima-media-categoria produtos-vendedores-distintos-mes}"
+# ONLY_REPORTS=1 mede só os relatórios; MYSQL_INDICE_DATA=1 (padrão) cria índice em vendas(data_venda)
 # no MySQL (o ClickHouse já é ordenado por data), necessário para comparar relatórios com filtro de período.
-ONLY_REPORTS="${ONLY_REPORTS:-0}"; MYSQL_INDICE_DATA="${MYSQL_INDICE_DATA:-0}"
+ONLY_REPORTS="${ONLY_REPORTS:-0}"; MYSQL_INDICE_DATA="${MYSQL_INDICE_DATA:-1}"
 INS_JSON='{"loja_id":1,"vendedor_id":1,"produto_id":1,"quantidade":2,"valor_unitario":99.90,"data_venda":"2026-06-15"}'
 UPD_JSON='{"loja_id":2,"vendedor_id":7,"produto_id":15,"quantidade":3,"valor_unitario":120.00}'   # correção de venda (sem mudar a data)
 RES="${RES:-$PWD/results}"; mkdir -p "$RES"

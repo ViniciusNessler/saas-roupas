@@ -13,6 +13,10 @@ function getMysqlPool() {
       user: process.env.MYSQL_USER || 'root',
       password: process.env.MYSQL_PASSWORD || '',
       database: process.env.MYSQL_DATABASE || 'saas_roupas',
+      // Agrupamento padrão do MySQL 8.4. Sem isso, o mysql2 usa o utf8mb4_unicode_ci, e textos gerados
+      // na consulta (ex.: DATE_FORMAT) ficam com chaves de ordenação maiores: o relatório de distintos
+      // por mês levou 74 s em 5 milhões de vendas, contra 4,4 s com este agrupamento.
+      charset: 'UTF8MB4_0900_AI_CI',
       waitForConnections: true,
       connectionLimit: 10,
     });

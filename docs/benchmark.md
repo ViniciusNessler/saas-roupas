@@ -8,15 +8,23 @@ Como os números do TCC foram gerados e como repetir.
   Cloud, mas não havia capacidade na região.
 - Os dois bancos rodam no mesmo host, um de cada vez (o outro fica parado), e cada um com o mesmo
   limite de 8 GB de RAM e 4 vCPUs (`docker-compose.yml`).
-- MySQL 8.4 com buffer pool de 5 GB. ClickHouse 26.8 LTS, que já tem o UPDATE leve (*patch parts*),
-  com a política de memória padrão.
+- MySQL 8.4.13 com buffer pool de 5 GB e índice em `vendas(data_venda)` (`MYSQL_INDICE_DATA=1`).
+  ClickHouse 26.8.36.3 LTS, que já tem o UPDATE leve (*patch parts*), com a política de memória padrão.
+- A conexão da aplicação ao MySQL usa o agrupamento padrão do servidor (`utf8mb4_0900_ai_ci`,
+  em `src/config/db.js`). Com o padrão do driver `mysql2` (`utf8mb4_unicode_ci`), o relatório de
+  distintos por mês levou 74 s em 5 milhões de vendas, contra 4,4 s, porque o mês gerado com
+  `DATE_FORMAT` deixava a ordenação mais pesada (814 passadas de mesclagem contra 158).
 - O script registra versões e configurações em `results/ambiente.txt` e `results/config_*.txt`.
 
 ## O que é medido
 
 - 4 volumes de vendas: 50 mil, 250 mil, 1 milhão e 5 milhões. Os dados são gerados com semente
   fixa, então os dois bancos recebem exatamente as mesmas linhas.
-- **Relatórios:** os 6 relatórios da aplicação.
+- **Relatórios:** 6 dos relatórios da aplicação, escolhidos por cobrirem construções de SQL
+  diferentes: filtro de período (`faturamento-loja-ultimo-mes`), CTE com HAVING
+  (`vendedores-ticket-trimestre`), função de janela (`ranking-vendedores-loja`), agregação condicional
+  (`vendas-faixa-valor`), subconsulta (`produtos-acima-media-categoria`) e contagem de distintos
+  (`produtos-vendedores-distintos-mes`).
 - **Escritas:** insert, update e delete de uma venda, sempre pela API, como um usuário faria.
 - 3 execuções de aquecimento (descartadas) e 30 medições por operação (`WARM`, `REPS`).
 

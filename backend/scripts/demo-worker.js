@@ -9,8 +9,8 @@ require('dotenv').config();
 const fs = require('fs');
 const { VendaRepo, RelatorioRepo } = require('../src/repositories/factory');
 
-const SLUGS = ['faturamento-loja-mes', 'top-produtos', 'desempenho-vendedores', 'giro-estoque',
-  'faturamento-categoria', 'evolucao-vendas'];
+const SLUGS = ['faturamento-loja-ultimo-mes', 'vendedores-ticket-trimestre', 'ranking-vendedores-loja',
+  'vendas-faixa-valor', 'produtos-acima-media-categoria', 'produtos-vendedores-distintos-mes'];
 const INSERCAO = { loja_id: 1, vendedor_id: 1, produto_id: 1, quantidade: 2, valor_unitario: 99.90, data_venda: '2026-06-15' };
 const CORRECAO = { loja_id: 2, vendedor_id: 7, produto_id: 15, quantidade: 3, valor_unitario: 120.00 };   // sem mudar a data
 

@@ -16,12 +16,12 @@ const VOLUME = Number(process.argv[2]) || 250000;
 const REPS = Number(process.argv[3]) || 5;
 const BACKEND = path.join(__dirname, '..');
 const ROOT = path.join(BACKEND, '..');
-const SLUGS = ['faturamento-loja-mes', 'top-produtos', 'desempenho-vendedores', 'giro-estoque',
-  'faturamento-categoria', 'evolucao-vendas'];
-const NOMES = ['Faturamento por loja e mês', 'Top 10 produtos', 'Desempenho de vendedores', 'Giro de estoque',
-  'Faturamento por categoria', 'Evolução diária de vendas'];
+const SLUGS = ['faturamento-loja-ultimo-mes', 'vendedores-ticket-trimestre', 'ranking-vendedores-loja',
+  'vendas-faixa-valor', 'produtos-acima-media-categoria', 'produtos-vendedores-distintos-mes'];
+const NOMES = ['Faturamento loja (último mês)', 'Vendedores acima do ticket', 'Ranking de vendedores',
+  'Vendas por faixa de valor', 'Produtos acima da média', 'Distintos por mês'];
 // ponto de equilíbrio publicado no artigo (Tabela 2), para comparação
-const ARTIGO = { 50000: [3.9, 21], 250000: [9.9, 91], 1000000: [15.8, 217], 5000000: [22.2, 1413] };
+const ARTIGO = { 50000: [1.6, 9.9], 250000: [4.8, 50.6], 1000000: [7.5, 223], 5000000: [8.5, 539] };
 
 const sh = (cmd, opts = {}) => execSync(cmd, { cwd: BACKEND, stdio: opts.quiet ? 'pipe' : 'inherit', env: { ...process.env, ...opts.env } });
 const out = (cmd, env) => execSync(cmd, { cwd: BACKEND, env: { ...process.env, ...env } }).toString();
@@ -47,6 +47,8 @@ function subir(adapter) {
 
 function estabilizar(adapter) {   // mesmo cuidado do run-study.sh: estatísticas no MySQL, partes mescladas no ClickHouse
   if (adapter === 'mysql') {
+    // mesmo índice da coleta (MYSQL_INDICE_DATA=1 no run-study.sh): dois relatórios filtram por período
+    execSync(`docker exec saas-mysql mysql -uroot -psenha123 saas_roupas -e "CREATE INDEX idx_vendas_data_venda ON vendas (data_venda)"`, { stdio: 'pipe' });
     execSync(`docker exec saas-mysql mysql -uroot -psenha123 saas_roupas -e "ANALYZE TABLE lojas, vendedores, produtos, estoque, vendas"`, { stdio: 'pipe' });
   } else {
     for (const t of ['lojas', 'vendedores', 'produtos', 'estoque', 'vendas'])
