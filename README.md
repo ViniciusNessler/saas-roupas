@@ -66,10 +66,3 @@ npm run graficos                         # gera os gráficos do artigo em result
 ```
 
 O protocolo e as decisões de medição estão em [docs/benchmark.md](docs/benchmark.md).
-
-## Sobre o uso de IA
-
-Usei o Claude Opus 5.5 (Anthropic) como assistente de programação durante o desenvolvimento,
-principalmente para gerar código repetitivo dos repositórios, montar os scripts de medição e
-revisar consultas. Os requisitos, a modelagem, as escolhas do protocolo e a interpretação dos
-resultados são meus, e todo trecho gerado foi lido, testado e ajustado antes de entrar aqui.
