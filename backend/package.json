@@ -12,7 +12,8 @@
     "estudo": "bash scripts/run-study.sh",
     "relatorio": "node scripts/bench-report.js results",
     "graficos": "node scripts/graficos.mjs results",
-    "planos": "node scripts/explain.js"
+    "planos": "node scripts/explain.js",
+    "demo": "node scripts/demo.js"
   },
   "dependencies": {
     "@clickhouse/client": "^1.4.0",

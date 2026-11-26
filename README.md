@@ -65,4 +65,9 @@ npm run relatorio                        # refaz resumo.csv, comparativo.csv e v
 npm run graficos                         # gera os gráficos do artigo em results/graficos/ (Vega-Lite)
 ```
 
+Para uma demonstração rápida (cerca de 1 minuto com 250 mil vendas): `npm run demo` carrega o mesmo
+volume nos dois bancos, um de cada vez, confere dados e saídas, mede os 6 relatórios e as escritas e
+calcula o ponto de equilíbrio. Com poucas repetições os tempos variam; os números do estudo vêm do
+`npm run estudo`.
+
 O protocolo e as decisões de medição estão em [docs/benchmark.md](docs/benchmark.md).
